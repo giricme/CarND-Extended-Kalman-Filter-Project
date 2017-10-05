@@ -58,8 +58,8 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
     float rho = sqrt(px*px + py*py);
     float phi = atan2(py, px);
     float rho_dot;
-    if (fabs(rho) < 0.0001) {
-        rho_dot = 0;
+    if (fabs(rho) < EPSILON2) {
+        rho_dot = EPSILON2;
     } else {
         rho_dot = (px*vx + py*vy)/rho;
     }
