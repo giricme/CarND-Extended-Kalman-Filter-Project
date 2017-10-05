@@ -28,23 +28,27 @@ void KalmanFilter::Predict() {
     P_ = F_*P_*F_.transpose() + Q_;
 }
 
+void KalmanFilter::NormalizeAngle(double& phi) {
+    phi = atan2(sin(phi), cos(phi));
+}
+
+void KalmanFilter::UpdateCommon(const VectorXd &y) {
+    const MatrixXd PHt = P_ * H_.transpose();
+    const MatrixXd S = H_ * PHt + R_;
+    const MatrixXd K = PHt * S.inverse();
+    
+    x_ += K * y;
+    P_ -= K * H_ * P_;
+}
+
 void KalmanFilter::Update(const VectorXd &z) {
   /**
    * update the state by using Kalman Filter equations
    */
     VectorXd z_pred = H_ * x_;
     VectorXd y = z - z_pred;
-    MatrixXd Ht = H_.transpose();
-    MatrixXd S = H_ * P_ * Ht + R_;
-    MatrixXd Si = S.inverse();
-    MatrixXd PHt = P_ * Ht;
-    MatrixXd K = PHt * Si;
     
-    //new estimate
-    x_ = x_ + (K * y);
-    long x_size = x_.size();
-    MatrixXd I = MatrixXd::Identity(x_size, x_size);
-    P_ = (I - K * H_) * P_;
+    UpdateCommon(y);
 }
 
 void KalmanFilter::UpdateEKF(const VectorXd &z) {
@@ -56,7 +60,10 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
     float vx = x_(2);
     float vy = x_(3);
     float rho = sqrt(px*px + py*py);
-    float phi = atan2(py, px);
+    float phi = 0.0;
+    if (py != 0 and px != 0) {
+        phi = atan2(py, px);
+    }
     float rho_dot;
     if (fabs(rho) < EPSILON2) {
         rho_dot = EPSILON2;
@@ -65,17 +72,8 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
     }
     VectorXd z_pred(3);
     z_pred << rho, phi, rho_dot;
-    
+
     VectorXd y = z - z_pred;
-    MatrixXd Ht = H_.transpose();
-    MatrixXd S = H_ * P_ * Ht + R_;
-    MatrixXd Si = S.inverse();
-    MatrixXd PHt = P_ * Ht;
-    MatrixXd K = PHt * Si;
-    
-    //new estimate
-    x_ = x_ + (K * y);
-    long x_size = x_.size();
-    MatrixXd I = MatrixXd::Identity(x_size, x_size);
-    P_ = (I - K * H_) * P_;
+    NormalizeAngle(y(1));
+    UpdateCommon(y);
 }
